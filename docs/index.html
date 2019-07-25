@@ -67,7 +67,8 @@
 				<h1 id="simplyws">simplyws</h1>
 				<p>A simple wrapper of WebSocket-compatible objects (i.e. any object that has readyState property, send() and close() methods) to provide some convenient Socket.io-like methods (such as on(), off(), emit()). It is designed to be used at both client and server sides.</p>
 				<h1 id="how-to-use">How to use</h1>
-				<pre><code><span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
+				<p>A simple example:</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
 <span class="hljs-keyword">const</span> expressWs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-ws'</span>)
 <span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>)
 
@@ -79,17 +80,98 @@
 <span class="hljs-keyword">const</span> app = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>)()
 expressWs(app)
 app.ws(TEST_ENDPOINT, <span class="hljs-keyword">async</span> (clientWs, request) =&gt; {
-    <span class="hljs-keyword">const</span> simplyWS = <span class="hljs-keyword">new</span> SimplyWS({ socket: clientWs })
-    simplyWS.on(<span class="hljs-string">'echo'</span>, <span class="hljs-function"><span class="hljs-params">message</span> =&gt;</span> simplyWS.emit(<span class="hljs-string">'echo-response'</span>, message))
-    simplyWS.on(<span class="hljs-string">'greet'</span>, <span class="hljs-function">(<span class="hljs-params">{ name, age }</span>) =&gt;</span> simplyWS.send(<span class="hljs-string">`Hi <span class="hljs-subst">${name}</span>, <span class="hljs-subst">${age}</span> years old`</span>))
+    <span class="hljs-keyword">const</span> simplyWS = <span class="hljs-keyword">new</span> SimplyWS({ <span class="hljs-attr">socket</span>: clientWs })
+    simplyWS.on(<span class="hljs-string">'echo'</span>, message =&gt; simplyWS.emit(<span class="hljs-string">'echo-response'</span>, message))
+    simplyWS.on(<span class="hljs-string">'greet'</span>, ({ name, age }) =&gt; simplyWS.send(<span class="hljs-string">`Hi <span class="hljs-subst">${name}</span>, <span class="hljs-subst">${age}</span> years old`</span>))
 })
 server = app.listen(SERVER_PORT)
 
 <span class="hljs-comment">// Set up the client side</span>
-<span class="hljs-keyword">const</span> simplyWSClient = <span class="hljs-keyword">new</span> SimplyWS({ socket: <span class="hljs-keyword">new</span> WebSocket(WS_URL) })
-<span class="hljs-keyword">const</span> testMessage = <span class="hljs-string">'Demo'</span>
-simplyWSClient.on(<span class="hljs-string">'echo-response'</span>, <span class="hljs-function"><span class="hljs-params">message</span> =&gt;</span> <span class="hljs-built_in">console</span>.log(message))
-simplyWSClient.on(<span class="hljs-string">'open'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> simplyWSClient.emit(<span class="hljs-string">'echo'</span>, testMessage))</code></pre><h1 id="references">References</h1>
+<span class="hljs-keyword">const</span> simplyWSClient = <span class="hljs-keyword">new</span> SimplyWS({ <span class="hljs-attr">socket</span>: <span class="hljs-keyword">new</span> WebSocket(WS_URL) })
+simplyWSClient.on(<span class="hljs-string">'echo-response'</span>, message =&gt; <span class="hljs-built_in">console</span>.log(message)) <span class="hljs-comment">// You should see: Hello</span>
+simplyWSClient.on(<span class="hljs-string">'message'</span>, message =&gt; <span class="hljs-built_in">console</span>.log(message)) <span class="hljs-comment">// You should see: Hi Mike, 30 years old</span>
+simplyWSClient.on(<span class="hljs-string">'open'</span>, () =&gt; {
+    simplyWSClient.emit(<span class="hljs-string">'echo'</span>, <span class="hljs-string">'Hello'</span>)
+    simplyWSClient.emit(<span class="hljs-string">'greet'</span>, { <span class="hljs-attr">name</span>: <span class="hljs-string">'Mike'</span>, <span class="hljs-attr">age</span>: <span class="hljs-number">30</span> })
+})</code></pre>
+				<h1 id="api">API</h1>
+				<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> IWebSocket {
+    readyState: <span class="hljs-built_in">number</span>;
+    send(message: <span class="hljs-built_in">any</span>): <span class="hljs-built_in">any</span>;
+    close(): <span class="hljs-built_in">any</span>;
+}
+
+<span class="hljs-keyword">interface</span> ISimplyWSOptions {
+    url?: <span class="hljs-built_in">string</span>;
+    autoConnect?: <span class="hljs-built_in">boolean</span>;
+    onError?: <span class="hljs-function">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt;</span> <span class="hljs-built_in">void</span>;
+    onLog?: <span class="hljs-function">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt;</span> <span class="hljs-built_in">void</span>;
+    socket?: IWebSocket;
+    socketBuilder?: <span class="hljs-function">(<span class="hljs-params">url: <span class="hljs-built_in">string</span></span>) =&gt;</span> IWebSocket;
+}
+
+<span class="hljs-keyword">declare</span> <span class="hljs-keyword">class</span> SimplyEventEmitter {
+    addHandler(eventName: <span class="hljs-built_in">string</span>, handler: <span class="hljs-function">(<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">any</span></span>) | <span class="hljs-params">any</span>, <span class="hljs-params">maxCalls</span>?: <span class="hljs-params">number</span>): <span class="hljs-params">number</span>;
+    <span class="hljs-params">removeHandler</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...handlerIds: <span class="hljs-built_in">number</span>[]</span>): <span class="hljs-params">SimplyEventEmitter</span>;
+    /**
+     * <span class="hljs-params">Emit</span> <span class="hljs-params">an</span> <span class="hljs-params">event</span>, <span class="hljs-params">which</span> <span class="hljs-params">results</span> <span class="hljs-params">in</span> <span class="hljs-params">the</span> <span class="hljs-params">execution</span> <span class="hljs-params">of</span> <span class="hljs-params">all</span> <span class="hljs-params">relevant</span> <span class="hljs-params">registered</span> <span class="hljs-params">handlers</span>.
+     * <span class="hljs-params">Besides</span> <span class="hljs-params">the</span> <span class="hljs-params">arguments</span> <span class="hljs-params">passed</span> <span class="hljs-params">by</span> <span class="hljs-params">the</span> <span class="hljs-params">caller</span>, <span class="hljs-params">each</span> <span class="hljs-params">handler</span> <span class="hljs-params">will</span> <span class="hljs-params">also</span> <span class="hljs-params">receive</span> 1 <span class="hljs-params">special</span>
+     * <span class="hljs-params">argument</span> <span class="hljs-params">at</span> <span class="hljs-params">last</span> <span class="hljs-params">that</span> <span class="hljs-params">contains</span> <span class="hljs-params">the</span> <span class="hljs-params">tag</span> <span class="hljs-params">information</span> <span class="hljs-params">about</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>.
+     * @<span class="hljs-params">param</span> <span class="hljs-params">eventName</span>
+     * @<span class="hljs-params">param</span> <span class="hljs-params">args</span>
+     */
+    <span class="hljs-params">emit</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...args: <span class="hljs-built_in">any</span>[]</span>): <span class="hljs-params">SimplyEventEmitter</span>;
+    <span class="hljs-params">reset</span><span class="hljs-params">()</span>: <span class="hljs-params">void</span>;
+}
+
+<span class="hljs-params">declare</span> <span class="hljs-params">class</span> <span class="hljs-params">SimplyWS</span> {
+    <span class="hljs-params">constructor</span>(<span class="hljs-params">options: ISimplyWSOptions</span>);
+
+    <span class="hljs-params">open</span><span class="hljs-params">()</span>: <span class="hljs-params">SimplyWS</span>;
+
+    /**
+     * <span class="hljs-params">Emit</span> <span class="hljs-params">an</span> <span class="hljs-params">event</span>-<span class="hljs-params">based</span> <span class="hljs-params">message</span> <span class="hljs-params">with</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">arguments</span>.
+     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
+     * @<span class="hljs-params">param</span>  {...<span class="hljs-params">any</span>} <span class="hljs-params">args</span>
+     */
+    <span class="hljs-params">emit</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...args: <span class="hljs-built_in">any</span>[]</span>): <span class="hljs-params">SimplyWS</span>;
+
+    /**
+     * <span class="hljs-params">Send</span> <span class="hljs-params">a</span> <span class="hljs-params">raw</span> <span class="hljs-params">text</span> <span class="hljs-params">message</span>.
+     * @<span class="hljs-params">param</span> <span class="hljs-params">message</span>
+     */
+    <span class="hljs-params">send</span>(<span class="hljs-params">message: <span class="hljs-built_in">string</span></span>): <span class="hljs-params">void</span>;
+
+    /**
+     * <span class="hljs-params">Register</span> <span class="hljs-params">a</span> <span class="hljs-params">one</span>-<span class="hljs-params">time</span> <span class="hljs-params">handler</span> <span class="hljs-params">for</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span> <span class="hljs-params">and</span> <span class="hljs-params">return</span> <span class="hljs-params">the</span> <span class="hljs-params">corresponding</span>
+     * <span class="hljs-params">handlerId</span> <span class="hljs-params">which</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">later</span> <span class="hljs-params">to</span> <span class="hljs-params">unregister</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>. <span class="hljs-params">It</span> <span class="hljs-params">is</span> <span class="hljs-params">a</span> <span class="hljs-params">shortcut</span>
+     * <span class="hljs-params">for</span> <span class="hljs-params">on</span>(<span class="hljs-params">eventName, handler, 1</span>).
+     * @<span class="hljs-params">param</span> <span class="hljs-params">eventName</span>
+     * @<span class="hljs-params">param</span> <span class="hljs-params">handler</span>
+     */
+    <span class="hljs-params">once</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, handler: (<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">void</span></span>) | <span class="hljs-built_in">any</span></span>): <span class="hljs-params">void</span>;
+
+    /**
+     * <span class="hljs-params">Register</span> <span class="hljs-params">a</span> <span class="hljs-params">handler</span> <span class="hljs-params">for</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span> <span class="hljs-params">and</span> <span class="hljs-params">return</span> <span class="hljs-params">the</span> <span class="hljs-params">corresponding</span>
+     * <span class="hljs-params">handlerId</span> <span class="hljs-params">which</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">later</span> <span class="hljs-params">to</span> <span class="hljs-params">unregister</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>.
+     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
+     * @<span class="hljs-params">param</span> {<span class="hljs-params">function</span>} <span class="hljs-params">handler</span>
+     * @<span class="hljs-params">param</span> {<span class="hljs-params">number</span>} <span class="hljs-params">maxCalls</span> <span class="hljs-params">The</span> <span class="hljs-params">number</span> <span class="hljs-params">of</span> <span class="hljs-params">times</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span>. <span class="hljs-params">After</span> <span class="hljs-params">that</span>, <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">will</span>
+     *         <span class="hljs-params">be</span> <span class="hljs-params">off</span>-<span class="hljs-params">ed</span> <span class="hljs-params">automatically</span>. <span class="hljs-params">If</span> 0 <span class="hljs-params">or</span> <span class="hljs-params">negative</span>, <span class="hljs-params">it</span> <span class="hljs-params">means</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">until</span> <span class="hljs-params">off</span><span class="hljs-params">()</span> <span class="hljs-params">is</span> <span class="hljs-params">called</span> <span class="hljs-params">for</span> <span class="hljs-params">it</span>.
+     */
+    <span class="hljs-params">on</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, handler: (<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">void</span></span>) | <span class="hljs-built_in">any</span>, maxCalls?: <span class="hljs-built_in">number</span></span>): <span class="hljs-params">number</span>;
+
+    /**
+     * <span class="hljs-params">Unregister</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">handlers</span> <span class="hljs-params">from</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span>. <span class="hljs-params">If</span> <span class="hljs-params">no</span> <span class="hljs-params">handler</span> <span class="hljs-params">is</span> <span class="hljs-params">specified</span>,
+     * <span class="hljs-params">then</span> <span class="hljs-params">unregister</span> <span class="hljs-params">all</span> <span class="hljs-params">registered</span> <span class="hljs-params">handlers</span>.
+     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
+     * @<span class="hljs-params">param</span>  {...<span class="hljs-params">any</span>} <span class="hljs-params">handlerIds</span>
+     */
+    <span class="hljs-params">off</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...handlerIds: <span class="hljs-built_in">number</span>[]</span>): <span class="hljs-params">SimplyWS</span>;
+
+    <span class="hljs-params">close</span><span class="hljs-params">()</span>: <span class="hljs-params">SimplyWS</span>;
+}</span></code></pre>
+				<h1 id="references">References</h1>
 				<ul>
 					<li><a href="https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80">https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80</a></li>
 					<li><a href="https://codeburst.io/https-chidume-nnamdi-com-npm-module-in-typescript-12b3b22f0724">https://codeburst.io/https-chidume-nnamdi-com-npm-module-in-typescript-12b3b22f0724</a></li>

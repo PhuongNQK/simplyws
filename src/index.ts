@@ -27,16 +27,84 @@ export interface ISimplyWSOptions {
 	socketBuilder?: (url: string) => IWebSocket
 }
 
+export class SimplyEventEmitter {
+	private _handlerMap: { [key: string]: { [subKey: string]: any } } = {}
+	private _handlerId = 0
+
+	addHandler(eventName: string, handler: ((...args: any[]) => any) | any, maxCalls: number = 0): number {
+		const handlerId = this._handlerId++
+		handler._tag = {
+			id: handlerId,
+			maxCalls: maxCalls,
+			count: 0
+		}
+		if (this._handlerMap[eventName] == null) {
+			this._handlerMap[eventName] = { [handlerId]: handler }
+		} else {
+			this._handlerMap[eventName][handlerId] = handler
+		}
+		return handlerId
+	}
+
+	removeHandler(eventName: string, ...handlerIds: number[]): SimplyEventEmitter {
+		if (handlerIds == null || handlerIds.length == 0) {
+			delete this._handlerMap[eventName]
+			return this
+		}
+
+		const subMap = this._handlerMap[eventName]
+		if (subMap == null) {
+			return this
+		}
+
+		for (let id of handlerIds) {
+			delete subMap[id]
+		}
+
+		return this
+	}
+
+	/**
+	 * Emit an event, which results in the execution of all relevant registered handlers.
+	 * Besides the arguments passed by the caller, each handler will also receive 1 special
+	 * argument at last that contains the tag information about this handler.
+	 * @param eventName
+	 * @param args
+	 */
+	emit(eventName: string, ...args: any[]): SimplyEventEmitter {
+		const subMap = this._handlerMap[eventName]
+		if (subMap == null) {
+			return this
+		}
+
+		for (let [handlerId, handler] of Object.entries(subMap)) {
+			handler(...args, handler._tag)
+			handler._tag.count++
+			if (handler._tag.maxCalls > 0 && handler._tag.count >= handler._tag.maxCalls) {
+				delete handler._tag
+				delete subMap[handlerId]
+			}
+		}
+
+		return this
+	}
+
+	reset() {
+		this._handlerMap = {}
+		this._handlerId = 0
+	}
+}
+
+const SEPARATOR = '\n\r' // This is an intentional wrong order to create a safe separator
+
 export class SimplyWS {
 	private _url?: string
 	private _onLog: (...args: any[]) => void
 	private _onError: (...args: any[]) => void
 	private _socket?: IWebSocket
-	private _customHandlerId: number = 0
-	private _customHandlerMap: { [key: string]: { [subKey: number]: any } } = {}
 	private _socketBuilder?: (url: any) => IWebSocket
-	private _coreHandlerId: number = 0
-	private _coreHandlerMap: { [key: string]: { [subKey: number]: any } } = {}
+	private _customEventEmitter = new SimplyEventEmitter()
+	private _coreEventEmitter = new SimplyEventEmitter()
 
 	constructor(options: ISimplyWSOptions) {
 		const { url, autoConnect, onError, onLog, socket, socketBuilder } = options
@@ -65,14 +133,14 @@ export class SimplyWS {
 	 * @param  {...any} args
 	 */
 	emit(eventName: string, ...args: any[]): SimplyWS {
-		const message = eventName + ':' + JSON.stringify(args)
+		const message = eventName + SEPARATOR + JSON.stringify(args)
 		this.send(message)
 		return this
 	}
 
 	/**
 	 * Send a raw text message.
-	 * @param message 
+	 * @param message
 	 */
 	send(message: string): void {
 		if (this._socket != null && this._socket.readyState == WS_READY_STATE.OPEN) {
@@ -81,27 +149,31 @@ export class SimplyWS {
 	}
 
 	/**
+	 * Register a one-time handler for the specified event and return the corresponding
+	 * handlerId which can be used later to unregister this handler. It is a shortcut
+	 * for on(eventName, handler, 1).
+	 * @param eventName
+	 * @param handler
+	 */
+	once(eventName: string, handler: ((...args: any[]) => void) | any) {
+		this.on(eventName, handler, 1)
+	}
+	/**
 	 * Register a handler for the specified event and return the corresponding
 	 * handlerId which can be used later to unregister this handler.
 	 * @param {string} eventName
 	 * @param {function} handler
+	 * @param {number} maxCalls The number of times this handler can be used. After that, this handler will
+	 * 		be off-ed automatically. If 0 or negative, it means this handler can be used until off() is called for it.
 	 */
-	on(eventName: string, handler: ((...args: any[]) => void) | any) {
+	on(eventName: string, handler: ((...args: any[]) => void) | any, maxCalls: number = 0) {
 		if (handler == null) {
-			handler = () => this._log(eventName)
+			handler = (handlerTag: any) => this._log(eventName, handlerTag)
 		} else if (typeof handler !== 'function') {
-			handler = () => this._log(eventName, handler)
+			handler = (handlerTag: any) => this._log(eventName, handler, handlerTag)
 		}
 
-		const handlerId = this._customHandlerId++
-		handler._handlerId = handlerId
-		if (this._customHandlerMap[eventName] == null) {
-			this._customHandlerMap[eventName] = { [handlerId]: handler }
-		} else {
-			this._customHandlerMap[eventName][handlerId] = handler
-		}
-
-		return handlerId
+		return this._customEventEmitter.addHandler(eventName, handler, maxCalls)
 	}
 
 	/**
@@ -111,20 +183,7 @@ export class SimplyWS {
 	 * @param  {...any} handlerIds
 	 */
 	off(eventName: string, ...handlerIds: number[]): SimplyWS {
-		if (handlerIds == null || handlerIds.length == 0) {
-			delete this._customHandlerMap[eventName]
-			return this
-		}
-
-		const subMap = this._customHandlerMap[eventName]
-		if (subMap == null) {
-			return this
-		}
-
-		for (let id in handlerIds) {
-			delete subMap[id]
-		}
-
+		this._customEventEmitter.removeHandler(eventName, ...handlerIds)
 		return this
 	}
 
@@ -147,7 +206,7 @@ export class SimplyWS {
 			this.executeCustomHandlers(WS_EVENT.ERROR, error)
 		)
 		this._addCoreEventHandler(socket, WS_EVENT.MESSAGE, message => {
-			const separatorIndex = message.indexOf(':')
+			const separatorIndex = message.indexOf(SEPARATOR)
 			if (separatorIndex > -1) {
 				const eventName = message.substring(0, separatorIndex)
 				const args = JSON.parse(message.substring(separatorIndex + 1))
@@ -158,11 +217,9 @@ export class SimplyWS {
 		})
 	}
 
-	private _addCoreEventHandler(socket: any, eventName: string, handler: (...args: any[]) => void): number {
-		const handlerId = this._coreHandlerId++
-
+	private _addCoreEventHandler(socket: any, eventName: string, handler: (...args: any[]) => void): number | undefined {
+		// WebSocket in ws package
 		if (socket.on) {
-			// WebSocket in ws package
 			socket.on(eventName, (...args: any[]) => {
 				try {
 					handler(...args)
@@ -171,36 +228,39 @@ export class SimplyWS {
 				}
 			})
 
-			// TODO Add handlerId to handler consistently
-		} else if (socket['on' + eventName]) {
-			// WebSocket in browser
+			return -1
+		}
+
+		// WebSocket in browser
+		const handlerMethodName = 'on' + eventName
+		if (socket[handlerMethodName]) {
 			let handlerWrapper: any
 
 			switch (eventName) {
 				case WS_EVENT.CLOSE:
-					handlerWrapper = () => {
+					handlerWrapper = (handlerTag: any) => {
 						try {
-							handler()
+							handler(handlerTag)
 						} catch (e) {
 							this._onError(eventName, e)
 						}
 					}
 					break
 				case WS_EVENT.ERROR:
-					handlerWrapper = (error: Error) => {
+					handlerWrapper = (error: Error, handlerTag: any) => {
 						try {
-							handler(error)
+							handler(error, handlerTag)
 						} catch (e) {
-							this._onError(eventName, e)
+							this._onError(eventName, e, handlerTag)
 						}
 					}
 					break
 				case WS_EVENT.MESSAGE:
-					handlerWrapper = (event: any) => {
+					handlerWrapper = (event: any, handlerTag: any) => {
 						try {
-							handler(event.data)
+							handler(event.data, handlerTag)
 						} catch (e) {
-							this._onError(eventName, e)
+							this._onError(eventName, e, handlerTag)
 						}
 					}
 					break
@@ -208,43 +268,27 @@ export class SimplyWS {
 					throw `Unsupported event: ${eventName}`
 			}
 
-			handlerWrapper._handlerId = handlerId
-			if (this._coreHandlerMap[eventName] == null) {
-				this._coreHandlerMap[eventName] = { [handlerId]: handlerWrapper }
-			} else {
-				this._coreHandlerMap[eventName][handlerId] = handlerWrapper
+			const existingHandler = socket[handlerMethodName]
+			if (existingHandler != null && existingHandler._tag != null) {
+				this._coreEventEmitter.addHandler(eventName, existingHandler)
 			}
 
-			socket['on' + eventName] = (...args: any[]) => this._executeCoreHandlers(eventName, ...args)
+			const handlerId = this._coreEventEmitter.addHandler(eventName, handlerWrapper)
+			socket[handlerMethodName] = (...args: any[]) => this._executeCoreHandlers(eventName, ...args)
+			return handlerId
 		}
-
-		return handlerId
 	}
 
 	private _reset() {
-		this._customHandlerId = 0
-		this._customHandlerMap = {}
+		this._customEventEmitter.reset()
+		this._coreEventEmitter.reset()
 	}
 
 	private executeCustomHandlers(eventName: string, ...args: any[]): void {
-		const subMap = this._customHandlerMap[eventName]
-		if (subMap == null) {
-			return
-		}
-
-		for (let key in subMap) {
-			subMap[key](...args)
-		}
+		this._customEventEmitter.emit(eventName, ...args)
 	}
 
 	private _executeCoreHandlers(eventName: string, ...args: any[]): void {
-		const subMap = this._coreHandlerMap[eventName]
-		if (subMap == null) {
-			return
-		}
-
-		for (let key in subMap) {
-			subMap[key](...args)
-		}
+		this._coreEventEmitter.emit(eventName, ...args)
 	}
 }

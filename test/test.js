@@ -30,6 +30,7 @@ const mochaAsync = (done, action) => {
 
 describe('Simple tests', () => {
 	let server = null
+	let simplyWSClient
 
 	before(() => {
 		const app = require('express')()
@@ -44,13 +45,20 @@ describe('Simple tests', () => {
 
 	after(() => {
 		if (server != null) {
-            console.log('Closing server...')
+			console.log('Closing server...')
 			server.close()
 		}
 	})
 
+	beforeEach(() => {
+		simplyWSClient = new SimplyWS({ socket: new WSWebSocket(WS_URL) })
+	})
+
+	afterEach(() => {
+		simplyWSClient.close()
+	})
+
 	it('client emits "echo" event and server replies with "echo-response" event', done => {
-		const simplyWSClient = new SimplyWS({ socket: new WSWebSocket(WS_URL) })
 		const testMessage = 'Demo'
 		simplyWSClient.on('echo-response', message =>
 			executeAsync(() => expect(message).to.equal(testMessage), done, message)
@@ -66,16 +74,42 @@ describe('Simple tests', () => {
 	})
 
 	it('client emits "echo" event and server replies with "echo-response" event 3', function() {
-		const simplyWSClient = new SimplyWS({ url: WS_URL, socketBuilder: url => new WSWebSocket(url) })
 		const testMessage = 'Demo3'
 		simplyWSClient.on('open', () => simplyWSClient.emit('echo', testMessage))
 
-		var testPromise = new Promise(function(resolve, reject) {
+		const testPromise = new Promise(function(resolve, reject) {
 			simplyWSClient.on('echo-response', message => resolve(message))
-        })
-        
+		})
+
 		return testPromise.then(function(message) {
 			expect(message).to.equal(testMessage)
+		})
+	})
+
+	it('send() will result in a "message" event', done => {
+		const testMessage = 'Hi Mike, 30 years old'
+		simplyWSClient.on('message', mochaAsync(done, message => expect(message).to.equal(testMessage)))
+		simplyWSClient.on('open', () => simplyWSClient.emit('greet', { name: 'Mike', age: 30 }))
+	})
+
+	it('a registered handler will be called at most maxCalls times', () => {
+		const testMessage = 'Demo3'
+		const maxCalls = 5
+		simplyWSClient.on('open', () => {
+			for (let i = 0; i < maxCalls * 2; i++) {
+				simplyWSClient.emit('echo', testMessage)
+			}
+		})
+
+		var resolveCount = 0
+		simplyWSClient.on('echo-response', message => resolveCount++, maxCalls)
+
+		const testPromise = new Promise((resolve, reject) => {
+			setTimeout(() => resolve(), 2000)
+		})
+
+		return testPromise.then(() => {
+			expect(resolveCount).to.equal(maxCalls)
 		})
 	})
 })
