@@ -1,0 +1,45 @@
+{
+	"name": "simplyws",
+	"version": "0.1.0",
+	"description": "A simple WebSocket wrapper that offers some convenient methods like Socket.io does.",
+	"main": "dist/index.js",
+	"scripts": {
+		"build": "tsc",
+		"build:watch": "tsc --watch",
+		"lint": "tslint --project \"./tsconfig.json\"",
+		"test": "mocha --reporter spec",
+		"docs": "typedoc --out docs src",
+		"gh-pages": "rimraf docs && npm run docs && gh-pages -d docs",
+		"postversion": "git push && git push --tags",
+		"prepublishOnly": "npm run ci",
+		"preversion": "npm run ci"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/PhuongNQK/simplyws.git"
+	},
+	"keywords": [
+		"WebSocket",
+		"wrapper"
+	],
+	"author": "PhuongNQK",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/PhuongNQK/simplyws/issues"
+	},
+	"homepage": "https://github.com/PhuongNQK/simplyws#readme",
+	"devDependencies": {
+		"@types/chai": "^4.1.7",
+		"@types/mocha": "^5.2.7",
+		"@types/node": "^12.6.8",
+		"chai": "^4.2.0",
+		"express": "^4.17.1",
+		"express-ws": "^4.0.0",
+		"gh-pages": "^2.0.1",
+		"mocha": "^6.2.0",
+		"tslint": "^5.18.0",
+		"typedoc": "^0.14.2",
+		"typescript": "^3.5.3",
+		"ws": "^7.1.1"
+	}
+}
