@@ -65,7 +65,31 @@
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
 				<h1 id="simplyws">simplyws</h1>
-				<h1 id="references">References</h1>
+				<p>A simple wrapper of WebSocket-compatible objects (i.e. any object that has readyState property, send() and close() methods) to provide some convenient Socket.io-like methods (such as on(), off(), emit()). It is designed to be used at both client and server sides.</p>
+				<h1 id="how-to-use">How to use</h1>
+				<pre><code><span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
+<span class="hljs-keyword">const</span> expressWs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-ws'</span>)
+<span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>)
+
+<span class="hljs-keyword">const</span> SERVER_PORT = <span class="hljs-number">3001</span>
+<span class="hljs-keyword">const</span> TEST_ENDPOINT = <span class="hljs-string">'/test'</span>
+<span class="hljs-keyword">const</span> WS_URL = <span class="hljs-string">`ws://localhost:<span class="hljs-subst">${SERVER_PORT}</span><span class="hljs-subst">${TEST_ENDPOINT}</span>`</span>
+
+<span class="hljs-comment">// Set up the server side</span>
+<span class="hljs-keyword">const</span> app = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>)()
+expressWs(app)
+app.ws(TEST_ENDPOINT, <span class="hljs-keyword">async</span> (clientWs, request) =&gt; {
+    <span class="hljs-keyword">const</span> simplyWS = <span class="hljs-keyword">new</span> SimplyWS({ socket: clientWs })
+    simplyWS.on(<span class="hljs-string">'echo'</span>, <span class="hljs-function"><span class="hljs-params">message</span> =&gt;</span> simplyWS.emit(<span class="hljs-string">'echo-response'</span>, message))
+    simplyWS.on(<span class="hljs-string">'greet'</span>, <span class="hljs-function">(<span class="hljs-params">{ name, age }</span>) =&gt;</span> simplyWS.send(<span class="hljs-string">`Hi <span class="hljs-subst">${name}</span>, <span class="hljs-subst">${age}</span> years old`</span>))
+})
+server = app.listen(SERVER_PORT)
+
+<span class="hljs-comment">// Set up the client side</span>
+<span class="hljs-keyword">const</span> simplyWSClient = <span class="hljs-keyword">new</span> SimplyWS({ socket: <span class="hljs-keyword">new</span> WebSocket(WS_URL) })
+<span class="hljs-keyword">const</span> testMessage = <span class="hljs-string">'Demo'</span>
+simplyWSClient.on(<span class="hljs-string">'echo-response'</span>, <span class="hljs-function"><span class="hljs-params">message</span> =&gt;</span> <span class="hljs-built_in">console</span>.log(message))
+simplyWSClient.on(<span class="hljs-string">'open'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> simplyWSClient.emit(<span class="hljs-string">'echo'</span>, testMessage))</code></pre><h1 id="references">References</h1>
 				<ul>
 					<li><a href="https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80">https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80</a></li>
 					<li><a href="https://codeburst.io/https-chidume-nnamdi-com-npm-module-in-typescript-12b3b22f0724">https://codeburst.io/https-chidume-nnamdi-com-npm-module-in-typescript-12b3b22f0724</a></li>
