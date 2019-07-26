@@ -10,6 +10,28 @@ export declare const WS_READY_STATE: {
     CLOSING: number;
     CLOSED: number;
 };
+export declare enum WS_EVENT_RUN_MODE {
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then
+     * execute that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then
+     * execute that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run both the custom event handler and this message handler.
+     */
+    AS_MUCH_AS_POSSIBLE = 0,
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then skip
+     * executing that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then skip
+     * executing that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run only the custom event handler and skip this message handler.
+     */
+    AS_LESS_AS_POSSIBLE = 1
+}
 export interface IWebSocket {
     readyState: number;
     send(message: any): any;
@@ -22,6 +44,10 @@ export interface ISimplyWSOptions {
     onLog?: (...args: any[]) => void;
     socket?: IWebSocket;
     socketBuilder?: (url: string) => IWebSocket;
+    /**
+     * Applied to the core WebSocket events only.
+     */
+    eventRunMode?: WS_EVENT_RUN_MODE;
 }
 export declare class SimplyEventEmitter {
     private _handlerMap;
@@ -36,6 +62,15 @@ export declare class SimplyEventEmitter {
      * @param args
      */
     emit(eventName: string, ...args: any[]): SimplyEventEmitter;
+    /**
+     * Run a specified event handler of a specific event.
+     * Besides the arguments passed by the caller, the handler will also receive 1 special
+     * argument at last that contains the tag information about this handler.
+     * @param eventName
+     * @param handlerId
+     * @param args
+     */
+    run(eventName: string, handlerId: number, ...args: any[]): SimplyEventEmitter;
     reset(): void;
 }
 export declare class SimplyWS {
@@ -46,6 +81,7 @@ export declare class SimplyWS {
     private _socketBuilder?;
     private _customEventEmitter;
     private _coreEventEmitter;
+    private _eventRunMode;
     constructor(options: ISimplyWSOptions);
     open(): SimplyWS;
     /**

@@ -12,6 +12,29 @@ exports.WS_READY_STATE = {
     CLOSING: 2,
     CLOSED: 3
 };
+var WS_EVENT_RUN_MODE;
+(function (WS_EVENT_RUN_MODE) {
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then
+     * execute that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then
+     * execute that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run both the custom event handler and this message handler.
+     */
+    WS_EVENT_RUN_MODE[WS_EVENT_RUN_MODE["AS_MUCH_AS_POSSIBLE"] = 0] = "AS_MUCH_AS_POSSIBLE";
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then skip
+     * executing that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then skip
+     * executing that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run only the custom event handler and skip this message handler.
+     */
+    WS_EVENT_RUN_MODE[WS_EVENT_RUN_MODE["AS_LESS_AS_POSSIBLE"] = 1] = "AS_LESS_AS_POSSIBLE";
+})(WS_EVENT_RUN_MODE = exports.WS_EVENT_RUN_MODE || (exports.WS_EVENT_RUN_MODE = {}));
 class SimplyEventEmitter {
     constructor() {
         this._handlerMap = {};
@@ -68,6 +91,31 @@ class SimplyEventEmitter {
         }
         return this;
     }
+    /**
+     * Run a specified event handler of a specific event.
+     * Besides the arguments passed by the caller, the handler will also receive 1 special
+     * argument at last that contains the tag information about this handler.
+     * @param eventName
+     * @param handlerId
+     * @param args
+     */
+    run(eventName, handlerId, ...args) {
+        const subMap = this._handlerMap[eventName];
+        if (subMap == null) {
+            return this;
+        }
+        const handler = subMap[handlerId];
+        if (handler == null) {
+            return this;
+        }
+        handler(...args, handler._tag);
+        handler._tag.count++;
+        if (handler._tag.maxCalls > 0 && handler._tag.count >= handler._tag.maxCalls) {
+            delete handler._tag;
+            delete subMap[handlerId];
+        }
+        return this;
+    }
     reset() {
         this._handlerMap = {};
         this._handlerId = 0;
@@ -79,11 +127,12 @@ class SimplyWS {
     constructor(options) {
         this._customEventEmitter = new SimplyEventEmitter();
         this._coreEventEmitter = new SimplyEventEmitter();
-        const { url, autoConnect, onError, onLog, socket, socketBuilder } = options;
+        const { url, autoConnect, onError, onLog, socket, socketBuilder, eventRunMode = WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE } = options;
         this._url = url;
         this._onError = onError || ((...args) => console.error(...args));
         this._onLog = onLog || ((...args) => console.log(...args));
         this._socketBuilder = socketBuilder || (socket != null ? url => socket : undefined);
+        this._eventRunMode = eventRunMode;
         if (socket != null || autoConnect || autoConnect == null) {
             this.open();
         }
@@ -141,7 +190,14 @@ class SimplyWS {
         else if (typeof handler !== 'function') {
             handler = (handlerTag) => this._log(eventName, handler, handlerTag);
         }
-        return this._customEventEmitter.addHandler(eventName, handler, maxCalls);
+        const handlerId = this._customEventEmitter.addHandler(eventName, handler, maxCalls);
+        if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE &&
+            this._socket != null &&
+            ((eventName == exports.WS_EVENT.CLOSE && this._socket.readyState == exports.WS_READY_STATE.CLOSED) ||
+                (eventName == exports.WS_EVENT.OPEN && this._socket.readyState == exports.WS_READY_STATE.OPEN))) {
+            this._customEventEmitter.run(eventName, handlerId);
+        }
+        return handlerId;
     }
     /**
      * Unregister the specified handlers from the specified event. If no handler is specified,
@@ -170,6 +226,9 @@ class SimplyWS {
         this._addCoreEventHandler(socket, exports.WS_EVENT.MESSAGE, message => {
             const separatorIndex = message.indexOf(SEPARATOR);
             if (separatorIndex > -1) {
+                if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
+                    this.executeCustomHandlers(exports.WS_EVENT.MESSAGE, message);
+                }
                 const eventName = message.substring(0, separatorIndex);
                 const args = JSON.parse(message.substring(separatorIndex + 1));
                 this.executeCustomHandlers(eventName, ...args);
@@ -181,7 +240,7 @@ class SimplyWS {
     }
     _addCoreEventHandler(socket, eventName, handler) {
         // WebSocket in ws package
-        if (socket.on) {
+        if (typeof socket.on === 'function') {
             socket.on(eventName, (...args) => {
                 try {
                     handler(...args);
@@ -194,7 +253,7 @@ class SimplyWS {
         }
         // WebSocket in browser
         const handlerMethodName = 'on' + eventName;
-        if (socket[handlerMethodName]) {
+        if (socket.hasOwnProperty(handlerMethodName) || typeof socket[handlerMethodName] !== undefined) {
             let handlerWrapper;
             switch (eventName) {
                 case exports.WS_EVENT.CLOSE:

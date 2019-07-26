@@ -105,7 +105,7 @@ describe('Simple tests', () => {
 		simplyWSClient.on('echo-response', message => resolveCount++, maxCalls)
 
 		const testPromise = new Promise((resolve, reject) => {
-			setTimeout(() => resolve(), 2000)
+			setTimeout(() => resolve(), 1000)
 		})
 
 		return testPromise.then(() => {
