@@ -35,6 +35,29 @@ simplyWSClient.on('open', () => {
 
 # API
 ```typescript
+export declare enum WS_EVENT_RUN_MODE {
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then
+     * execute that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then
+     * execute that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run both the custom event handler and this message handler.
+     */
+    AS_MUCH_AS_POSSIBLE = 0,
+    /**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then skip
+     * executing that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then skip
+     * executing that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run only the custom event handler and skip this message handler.
+     */
+    AS_LESS_AS_POSSIBLE = 1
+}
+
 interface IWebSocket {
     readyState: number;
     send(message: any): any;

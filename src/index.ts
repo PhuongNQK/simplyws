@@ -319,6 +319,7 @@ export class SimplyWS {
 
 			switch (eventName) {
 				case WS_EVENT.CLOSE:
+				case WS_EVENT.OPEN:
 					handlerWrapper = (handlerTag: any) => {
 						try {
 							handler(handlerTag)
