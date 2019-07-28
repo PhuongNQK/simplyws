@@ -1,6 +1,6 @@
 {
 	"name": "simplyws",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "A simple WebSocket wrapper that offers some convenient methods like Socket.io does.",
 	"main": "dist/index.js",
 	"scripts": {
@@ -23,7 +23,7 @@
 		"wrapper"
 	],
 	"author": "PhuongNQK",
-	"license": "ISC",
+	"license": "MIT",
 	"bugs": {
 		"url": "https://github.com/PhuongNQK/simplyws/issues"
 	},
@@ -40,6 +40,7 @@
 		"tslint": "^5.18.0",
 		"typedoc": "^0.14.2",
 		"typescript": "^3.5.3",
-		"ws": "^7.1.1"
+		"ws": "^7.1.1",
+		"eslint-plugin-mocha": "^6.0.0"
 	}
 }

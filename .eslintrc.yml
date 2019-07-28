@@ -1,0 +1,31 @@
+env:
+  browser: false
+  es6: true
+  node: true
+  mocha: true
+plugins:
+  - mocha
+extends:
+  - 'eslint:recommended'  
+  - 'plugin:mocha/recommended'
+parserOptions:
+  sourceType: module
+  ecmaVersion: 2018 
+rules:
+  indent:
+    - warn
+    - tab
+    - SwitchCase: 1
+  linebreak-style:
+    - error
+    - windows
+  quotes:
+    - error
+    - single
+  semi:
+    - error
+    - never
+  no-console: 'off'
+  no-throw-literal: error  
+  mocha/no-mocha-arrows: off
+  mocha/max-top-level-suites: off

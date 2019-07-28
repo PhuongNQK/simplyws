@@ -28,7 +28,7 @@ const mochaAsync = (done, action) => {
 	}
 }
 
-describe('Simple tests', () => {
+describe('SimplyWS tests', () => {
 	let server = null
 	let simplyWSClient
 
@@ -112,4 +112,71 @@ describe('Simple tests', () => {
 			expect(resolveCount).to.equal(maxCalls)
 		})
 	})
+})
+
+describe('WebSocket tests', () => {
+	let server = null
+	let wsClient
+
+	before(() => {
+		const app = require('express')()
+		expressWs(app)
+		app.ws(TEST_ENDPOINT, async (clientWs, request) => {
+			clientWs.on('message', message => {
+				// throw 'Demo'
+				clientWs.send(message)
+			})
+		})
+		server = app.listen(SERVER_PORT)
+	})
+
+	after(() => {
+		if (server != null) {
+			console.log('Closing server...')
+			server.close()
+		}
+	})
+
+	beforeEach(() => {
+		wsClient = new WSWebSocket(WS_URL)
+	})
+
+	afterEach(() => {
+		wsClient.close()
+	})
+
+	it('Send 1', done => {
+		wsClient.on('open', () => {
+			wsClient.send('Test')
+			done()
+		})
+	})
+
+	it('Send 2', done => {
+		wsClient.on('open', () => {
+			wsClient.send('Test')
+			done()
+		})
+	})
+})
+
+// eslint-disable-next-line mocha/no-mocha-arrows
+describe('Common tests', () => {
+	it('Type of exception should be string', () => {
+		try {
+			throw 'Demo'			
+		} catch (e) {
+			expect(typeof e).to.equal('string')
+		}
+	})
+
+	// eslint-disable-next-line mocha/no-mocha-arrows
+	it('Type of exception should be Error', () => {
+		try {
+			throw { name: 'Demo' }
+		} catch (e) {
+			expect(typeof e).to.equal('object')
+		}
+	})
+
 })

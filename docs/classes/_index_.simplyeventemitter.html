@@ -69,6 +69,14 @@
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>An event emitter that allows adding/removing handlers for different events,
+						emitting a specific event, as well as running a specific handler.</p>
+					</div>
+				</div>
+			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
@@ -109,7 +117,7 @@
 					<div class="tsd-signature tsd-kind-icon">_handler<wbr>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> =&nbsp;0</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in index.ts:59</li>
+							<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L63">index.ts:63</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -119,7 +127,7 @@
 					<div class="tsd-signature tsd-kind-icon">_handler<wbr>Map<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">object</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in index.ts:58</li>
+							<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L62">index.ts:62</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-type-declaration">
@@ -149,9 +157,15 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in index.ts:61</li>
+									<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L72">index.ts:72</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Add a handler for a specific event and optionally specify the maximum number
+									of times that handler can be called. The handler ID will be returned.</p>
+								</div>
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
@@ -162,6 +176,9 @@
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> maxCalls: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> =&nbsp;0</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>0 = will be called until it is removed by the caller.</p>
+									</div>
 								</li>
 							</ul>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
@@ -178,14 +195,16 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in index.ts:101</li>
+									<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L121">index.ts:121</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
 								<div class="lead">
 									<p>Emit an event, which results in the execution of all relevant registered handlers.
 										Besides the arguments passed by the caller, each handler will also receive 1 special
-									argument at last that contains the tag information about this handler.</p>
+										argument at last that contains the tag information about this handler.
+										This method will return the emitter itself. As a result, it is possible to chain a series of
+									calls to this method.</p>
 								</div>
 							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
@@ -213,9 +232,16 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in index.ts:76</li>
+									<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L94">index.ts:94</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Remove from the specified event all handlers having the specified IDs and
+										return the emitter itself. As a result, it is possible to chain a series of
+									calls to this method.</p>
+								</div>
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
@@ -223,6 +249,8 @@
 								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>handlerIds: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">[]</span></h5>
+									<div class="tsd-comment tsd-typography">
+									</div>
 								</li>
 							</ul>
 							<h4 class="tsd-returns-title">Returns <a href="_index_.simplyeventemitter.html" class="tsd-signature-type">SimplyEventEmitter</a></h4>
@@ -233,16 +261,23 @@
 					<a name="reset" class="tsd-anchor"></a>
 					<h3>reset</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">reset<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+						<li class="tsd-signature tsd-kind-icon">reset<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">this</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in index.ts:148</li>
+									<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L175">index.ts:175</a></li>
 								</ul>
 							</aside>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Reset this emitter.
+										This method will return the emitter itself. As a result, it is possible to chain other methods to
+									the call to this method.</p>
+								</div>
+							</div>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">this</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -256,14 +291,16 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in index.ts:127</li>
+									<li>Defined in <a href="https://github.com/PhuongNQK/simplyws/blob/68cbe18/src/index.ts#L149">index.ts:149</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
 								<div class="lead">
 									<p>Run a specified event handler of a specific event.
 										Besides the arguments passed by the caller, the handler will also receive 1 special
-									argument at last that contains the tag information about this handler.</p>
+										argument at last that contains the tag information about this handler.
+										This method will return the emitter itself. As a result, it is possible to chain a series of
+									calls to this method.</p>
 								</div>
 							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>

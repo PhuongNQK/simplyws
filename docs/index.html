@@ -95,7 +95,30 @@ simplyWSClient.on(<span class="hljs-string">'open'</span>, () =&gt; {
     simplyWSClient.emit(<span class="hljs-string">'greet'</span>, { <span class="hljs-attr">name</span>: <span class="hljs-string">'Mike'</span>, <span class="hljs-attr">age</span>: <span class="hljs-number">30</span> })
 })</code></pre>
 				<h1 id="api">API</h1>
-				<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> IWebSocket {
+				<pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">declare</span> <span class="hljs-keyword">enum</span> WS_EVENT_RUN_MODE {
+    <span class="hljs-comment">/**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then
+     * execute that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then
+     * execute that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run both the custom event handler and this message handler.
+     */</span>
+    AS_MUCH_AS_POSSIBLE = <span class="hljs-number">0</span>,
+    <span class="hljs-comment">/**
+     * For example:
+     * - If a handler for 'open' is added when readyState = OPEN, then skip
+     * executing that handler immediately.
+     * - If a handler for 'close' is added when readyState = CLOSED, then skip
+     * executing that handler immediately.
+     * - If a handler for 'message' is added and the corresponding message matches a custom event,
+     * then run only the custom event handler and skip this message handler.
+     */</span>
+    AS_LESS_AS_POSSIBLE = <span class="hljs-number">1</span>
+}
+
+<span class="hljs-keyword">interface</span> IWebSocket {
     readyState: <span class="hljs-built_in">number</span>;
     send(message: <span class="hljs-built_in">any</span>): <span class="hljs-built_in">any</span>;
     close(): <span class="hljs-built_in">any</span>;

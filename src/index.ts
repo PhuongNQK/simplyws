@@ -49,15 +49,26 @@ export interface ISimplyWSOptions {
 	socket?: IWebSocket
 	socketBuilder?: (url: string) => IWebSocket
 	/**
-	 * Applied to the core WebSocket events only.
+	 * Applied to the core WebSocket events (open, error, close, message) only.
 	 */
 	eventRunMode?: WS_EVENT_RUN_MODE
 }
 
+/**
+ * An event emitter that allows adding/removing handlers for different events,
+ * emitting a specific event, as well as running a specific handler.
+ */
 export class SimplyEventEmitter {
 	private _handlerMap: { [key: string]: { [subKey: string]: any } } = {}
 	private _handlerId = 0
 
+	/**
+	 * Add a handler for a specific event and optionally specify the maximum number
+	 * of times that handler can be called. The handler ID will be returned.
+	 * @param eventName
+	 * @param handler
+	 * @param maxCalls 0 = will be called until it is removed by the caller.
+	 */
 	addHandler(eventName: string, handler: ((...args: any[]) => any) | any, maxCalls: number = 0): number {
 		const handlerId = this._handlerId++
 		handler._tag = {
@@ -73,6 +84,13 @@ export class SimplyEventEmitter {
 		return handlerId
 	}
 
+	/**
+	 * Remove from the specified event all handlers having the specified IDs and
+	 * return the emitter itself. As a result, it is possible to chain a series of
+	 * calls to this method.
+	 * @param eventName
+	 * @param handlerIds
+	 */
 	removeHandler(eventName: string, ...handlerIds: number[]): SimplyEventEmitter {
 		if (handlerIds == null || handlerIds.length == 0) {
 			delete this._handlerMap[eventName]
@@ -95,6 +113,8 @@ export class SimplyEventEmitter {
 	 * Emit an event, which results in the execution of all relevant registered handlers.
 	 * Besides the arguments passed by the caller, each handler will also receive 1 special
 	 * argument at last that contains the tag information about this handler.
+	 * This method will return the emitter itself. As a result, it is possible to chain a series of
+	 * calls to this method.
 	 * @param eventName
 	 * @param args
 	 */
@@ -120,6 +140,8 @@ export class SimplyEventEmitter {
 	 * Run a specified event handler of a specific event.
 	 * Besides the arguments passed by the caller, the handler will also receive 1 special
 	 * argument at last that contains the tag information about this handler.
+	 * This method will return the emitter itself. As a result, it is possible to chain a series of
+	 * calls to this method.
 	 * @param eventName
 	 * @param handlerId
 	 * @param args
@@ -145,14 +167,25 @@ export class SimplyEventEmitter {
 		return this
 	}
 
+	/**
+	 * Reset this emitter.
+	 * This method will return the emitter itself. As a result, it is possible to chain other methods to
+	 * the call to this method.
+	 */
 	reset() {
 		this._handlerMap = {}
 		this._handlerId = 0
+		return this
 	}
 }
 
 const SEPARATOR = '\n\r' // This is an intentional wrong order to create a safe separator
 
+/**
+ * A simple wrapper of WebSocket-compatible objects (i.e. any object that matches the IWebSocket interface)
+ * to provide some convenient Socket.io-like methods (such as on(), off(), emit()).
+ * It is designed to be used at both client and server sides.
+ */
 export class SimplyWS {
 	private _url?: string
 	private _onLog: (...args: any[]) => void
@@ -183,6 +216,9 @@ export class SimplyWS {
 		}
 	}
 
+	/**
+	 * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
+	 */
 	open(): SimplyWS {
 		this._reset()
 		if (this._socket == null && this._socketBuilder != null) {
@@ -227,6 +263,10 @@ export class SimplyWS {
 	/**
 	 * Register a handler for the specified event and return the corresponding
 	 * handlerId which can be used later to unregister this handler.
+	 * For the 'message' event, the handler should have this signature: 
+	 * (message: string, matchesCustomEvent: boolean) => void. When matchesCustomEvent = true,
+	 * it means this message can be handled by a custom event handler, i.e. this 'message' handler 
+	 * can base on matchesCustomEvent to determine if a message should be handled or not.
 	 * @param {string} eventName
 	 * @param {function} handler
 	 * @param {number} maxCalls The number of times this handler can be used. After that, this handler will
@@ -283,17 +323,18 @@ export class SimplyWS {
 		)
 		this._addCoreEventHandler(socket, WS_EVENT.MESSAGE, message => {
 			const separatorIndex = message.indexOf(SEPARATOR)
+			const matchesCustomEvent: boolean = (separatorIndex > -1)
 
-			if (separatorIndex > -1) {
+			if (matchesCustomEvent) {
 				if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
-					this.executeCustomHandlers(WS_EVENT.MESSAGE, message)
+					this.executeCustomHandlers(WS_EVENT.MESSAGE, message, matchesCustomEvent)
 				}
 
 				const eventName = message.substring(0, separatorIndex)
 				const args = JSON.parse(message.substring(separatorIndex + 1))
 				this.executeCustomHandlers(eventName, ...args)
 			} else {
-				this.executeCustomHandlers(WS_EVENT.MESSAGE, message)
+				this.executeCustomHandlers(WS_EVENT.MESSAGE, message, matchesCustomEvent)
 			}
 		})
 	}
@@ -351,8 +392,12 @@ export class SimplyWS {
 			}
 
 			const existingHandler = socket[handlerMethodName]
-			if (existingHandler != null && existingHandler._tag != null) {
-				this._coreEventEmitter.addHandler(eventName, existingHandler)
+			if (existingHandler != null) {
+				if (existingHandler._tag != null) {
+					return existingHandler._tag.id
+				} else {
+					this._coreEventEmitter.addHandler(eventName, existingHandler)
+				}
 			}
 
 			const handlerId = this._coreEventEmitter.addHandler(eventName, handlerWrapper)
