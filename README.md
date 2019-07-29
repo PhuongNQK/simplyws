@@ -1,19 +1,20 @@
 # simplyws
 
-A simple wrapper of WebSocket-compatible objects (i.e. any object that has readyState property, send() and close() methods) to provide some convenient Socket.io-like methods (such as on(), off(), emit()). It is designed to be used at both client and server sides.
+A simple wrapper of WebSocket-compatible objects (i.e. any object that matches the **IWebSocket** interface) to provide some convenient Socket.io-like methods (such as **on()**, **off()**, **emit()**). It is designed to be used in a NodeJS server as well as in a browser client, both of which can be written in either TypeScript or JavaScript.
 
 # How to use
 A simple example:
 ```javascript
-const { SimplyWS } = require('simplyws')
-const expressWs = require('express-ws')
-const WebSocket = require('ws')
 
+
+// Common test values
 const SERVER_PORT = 3001
 const TEST_ENDPOINT = '/test'
 const WS_URL = `ws://localhost:${SERVER_PORT}${TEST_ENDPOINT}`
 
-// Set up the server side
+// Set up the NodeJS server side
+const { SimplyWS } = require('simplyws')
+const expressWs = require('express-ws')
 const app = require('express')()
 expressWs(app)
 app.ws(TEST_ENDPOINT, async (clientWs, request) => {
@@ -23,7 +24,9 @@ app.ws(TEST_ENDPOINT, async (clientWs, request) => {
 })
 server = app.listen(SERVER_PORT)
 
-// Set up the client side
+// Set up a NodeJS client
+const { SimplyWS } = require('simplyws')
+const WebSocket = require('ws')
 const simplyWSClient = new SimplyWS({ socket: new WebSocket(WS_URL) })
 simplyWSClient.on('echo-response', message => console.log(message)) // You should see: Hello
 simplyWSClient.on('message', message => console.log(message)) // You should see: Hi Mike, 30 years old
@@ -79,16 +82,40 @@ export interface IWebSocket {
 }
 
 export interface ISimplyWSOptions {
+    /**
+     * The url to the WebSocket endpoint to connect to.
+     */
     url?: string;
-    autoConnect?: boolean;
+    /**
+     * By default, true.
+     */
+    autoConnects?: boolean;
+    /**
+     * By default, it will be a call to console.error().
+     */
     onError?: (...args: any[]) => void;
+    /**
+     * By default, it will be a call to console.log().
+     */
     onLog?: (...args: any[]) => void;
+    /**
+     * The underlying websocket connection. If this is specified, then autoConnects will be treated as
+     * true and this socket will be used while url / socketBuilder will be ignored.
+     */
     socket?: IWebSocket;
+    /**
+     * A function that returns an IWebSocket object given a url to the target endpoint.
+     */
     socketBuilder?: (url: string) => IWebSocket;
     /**
      * Applied to the core WebSocket events (open, error, close, message) only.
      */
     eventRunMode?: WS_EVENT_RUN_MODE;
+    /**
+     * Automatically wrap a handler with try...catch. Any occurred error will be handled by onError.
+     * By default, it is true.
+     */
+    runsHandlersSafely: boolean;
 }
 
 /**
@@ -148,6 +175,7 @@ export declare class SimplyEventEmitter {
  */
 export declare class SimplyWS {
     constructor(options: ISimplyWSOptions);
+    readonly readyState: number | undefined;
     /**
      * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
      */
@@ -197,7 +225,6 @@ export declare class SimplyWS {
 ```
 
 # References
-
 - https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80
 - https://codeburst.io/https-chidume-nnamdi-com-npm-module-in-typescript-12b3b22f0724
 - https://staxmanade.com/2015/11/testing-asyncronous-code-with-mochajs-and-es7-async-await/

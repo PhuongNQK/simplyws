@@ -8,6 +8,13 @@ const SERVER_PORT = 3001
 const TEST_ENDPOINT = '/test'
 const WS_URL = `ws://localhost:${SERVER_PORT}${TEST_ENDPOINT}`
 
+const WS_READY_STATE = {
+	CONNECTING: 0,
+	OPEN: 1,
+	CLOSING: 2,
+	CLOSED: 3
+}
+
 const executeAsync = (action, done, ...args) => {
 	try {
 		action(...args)
@@ -56,6 +63,10 @@ describe('SimplyWS tests', () => {
 
 	afterEach(() => {
 		simplyWSClient.close()
+	})
+
+	it('readyState should be OPEN on open', done => {		
+		simplyWSClient.on('open', () => executeAsync(() => expect(simplyWSClient.readyState).to.equal(WS_READY_STATE.OPEN), done))
 	})
 
 	it('client emits "echo" event and server replies with "echo-response" event', done => {

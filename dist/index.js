@@ -160,15 +160,31 @@ class SimplyWS {
     constructor(options) {
         this._customEventEmitter = new SimplyEventEmitter();
         this._coreEventEmitter = new SimplyEventEmitter();
-        const { url, autoConnect, onError, onLog, socket, socketBuilder, eventRunMode = WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE } = options;
+        const { url, autoConnects, onError, onLog, socket, socketBuilder, runsHandlersSafely, eventRunMode = WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE } = options;
         this._url = url;
         this._onError = onError || ((...args) => console.error(...args));
         this._onLog = onLog || ((...args) => console.log(...args));
         this._socketBuilder = socketBuilder || (socket != null ? url => socket : undefined);
         this._eventRunMode = eventRunMode;
-        if (socket != null || autoConnect || autoConnect == null) {
+        if (runsHandlersSafely || runsHandlersSafely == null) {
+            this._handlerBuilder = (handler) => (...args) => {
+                try {
+                    handler(...args);
+                }
+                catch (e) {
+                    this._onError(e);
+                }
+            };
+        }
+        else {
+            this._handlerBuilder = (handler) => handler;
+        }
+        if (socket != null || autoConnects || autoConnects == null) {
             this.open();
         }
+    }
+    get readyState() {
+        return this._socket == null ? undefined : this._socket.readyState;
     }
     /**
      * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
@@ -230,6 +246,7 @@ class SimplyWS {
         else if (typeof handler !== 'function') {
             handler = (handlerTag) => this._log(eventName, handler, handlerTag);
         }
+        handler = this._handlerBuilder(handler);
         const handlerId = this._customEventEmitter.addHandler(eventName, handler, maxCalls);
         if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE &&
             this._socket != null &&
@@ -265,7 +282,7 @@ class SimplyWS {
         this._addCoreEventHandler(socket, exports.WS_EVENT.ERROR, (error) => this.executeCustomHandlers(exports.WS_EVENT.ERROR, error));
         this._addCoreEventHandler(socket, exports.WS_EVENT.MESSAGE, message => {
             const separatorIndex = message.indexOf(SEPARATOR);
-            const matchesCustomEvent = (separatorIndex > -1);
+            const matchesCustomEvent = separatorIndex > -1;
             if (matchesCustomEvent) {
                 if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
                     this.executeCustomHandlers(exports.WS_EVENT.MESSAGE, message, matchesCustomEvent);

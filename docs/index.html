@@ -95,8 +95,22 @@ simplyWSClient.on(<span class="hljs-string">'open'</span>, () =&gt; {
     simplyWSClient.emit(<span class="hljs-string">'greet'</span>, { <span class="hljs-attr">name</span>: <span class="hljs-string">'Mike'</span>, <span class="hljs-attr">age</span>: <span class="hljs-number">30</span> })
 })</code></pre>
 				<h1 id="api">API</h1>
-				<pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">declare</span> <span class="hljs-keyword">enum</span> WS_EVENT_RUN_MODE {
-    <span class="hljs-comment">/**
+				<pre><code class="language-typescript">export const WS_EVENT = {
+    OPEN: 'open',
+    ERROR: 'error',
+    CLOSE: 'close',
+    MESSAGE: 'message'
+}
+
+export const WS_READY_STATE = {
+    CONNECTING: 0,
+    OPEN: 1,
+    CLOSING: 2,
+    CLOSED: 3
+}
+
+export declare enum WS_EVENT_RUN_MODE {
+    /**
      * For example:
      * - If a handler for 'open' is added when readyState = OPEN, then
      * execute that handler immediately.
@@ -104,9 +118,9 @@ simplyWSClient.on(<span class="hljs-string">'open'</span>, () =&gt; {
      * execute that handler immediately.
      * - If a handler for 'message' is added and the corresponding message matches a custom event,
      * then run both the custom event handler and this message handler.
-     */</span>
-    AS_MUCH_AS_POSSIBLE = <span class="hljs-number">0</span>,
-    <span class="hljs-comment">/**
+     */
+    AS_MUCH_AS_POSSIBLE = 0,
+    /**
      * For example:
      * - If a handler for 'open' is added when readyState = OPEN, then skip
      * executing that handler immediately.
@@ -114,86 +128,156 @@ simplyWSClient.on(<span class="hljs-string">'open'</span>, () =&gt; {
      * executing that handler immediately.
      * - If a handler for 'message' is added and the corresponding message matches a custom event,
      * then run only the custom event handler and skip this message handler.
-     */</span>
-    AS_LESS_AS_POSSIBLE = <span class="hljs-number">1</span>
+     */
+    AS_LESS_AS_POSSIBLE = 1
 }
 
-<span class="hljs-keyword">interface</span> IWebSocket {
-    readyState: <span class="hljs-built_in">number</span>;
-    send(message: <span class="hljs-built_in">any</span>): <span class="hljs-built_in">any</span>;
-    close(): <span class="hljs-built_in">any</span>;
+export interface IWebSocket {
+    readyState: number;
+    send(message: any): any;
+    close(): any;
 }
 
-<span class="hljs-keyword">interface</span> ISimplyWSOptions {
-    url?: <span class="hljs-built_in">string</span>;
-    autoConnect?: <span class="hljs-built_in">boolean</span>;
-    onError?: <span class="hljs-function">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt;</span> <span class="hljs-built_in">void</span>;
-    onLog?: <span class="hljs-function">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt;</span> <span class="hljs-built_in">void</span>;
+export interface ISimplyWSOptions {
+    /**
+     * The url to the WebSocket endpoint to connect to.
+     */
+    url?: string;
+    /**
+     * By default, true.
+     */
+    autoConnects?: boolean;
+    /**
+     * By default, it will be a call to console.error().
+     */
+    onError?: (...args: any[]) =&gt; void;
+    /**
+     * By default, it will be a call to console.log().
+     */
+    onLog?: (...args: any[]) =&gt; void;
+    /**
+     * The underlying websocket connection. If this is specified, then autoConnects will be treated as
+     * true and this socket will be used while url / socketBuilder will be ignored.
+     */
     socket?: IWebSocket;
-    socketBuilder?: <span class="hljs-function">(<span class="hljs-params">url: <span class="hljs-built_in">string</span></span>) =&gt;</span> IWebSocket;
+    /**
+     * A function that returns an IWebSocket object given a url to the target endpoint.
+     */
+    socketBuilder?: (url: string) =&gt; IWebSocket;
+    /**
+     * Applied to the core WebSocket events (open, error, close, message) only.
+     */
+    eventRunMode?: WS_EVENT_RUN_MODE;
+    /**
+     * Automatically wrap a handler with try...catch. Any occurred error will be handled by onError.
+     * By default, it is true.
+     */
+    runsHandlersSafely: boolean;
 }
 
-<span class="hljs-keyword">declare</span> <span class="hljs-keyword">class</span> SimplyEventEmitter {
-    addHandler(eventName: <span class="hljs-built_in">string</span>, handler: <span class="hljs-function">(<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">any</span></span>) | <span class="hljs-params">any</span>, <span class="hljs-params">maxCalls</span>?: <span class="hljs-params">number</span>): <span class="hljs-params">number</span>;
-    <span class="hljs-params">removeHandler</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...handlerIds: <span class="hljs-built_in">number</span>[]</span>): <span class="hljs-params">SimplyEventEmitter</span>;
+/**
+ * An event emitter that allows adding/removing handlers for different events,
+ * emitting a specific event, as well as running a specific handler.
+ */
+export declare class SimplyEventEmitter {
     /**
-     * <span class="hljs-params">Emit</span> <span class="hljs-params">an</span> <span class="hljs-params">event</span>, <span class="hljs-params">which</span> <span class="hljs-params">results</span> <span class="hljs-params">in</span> <span class="hljs-params">the</span> <span class="hljs-params">execution</span> <span class="hljs-params">of</span> <span class="hljs-params">all</span> <span class="hljs-params">relevant</span> <span class="hljs-params">registered</span> <span class="hljs-params">handlers</span>.
-     * <span class="hljs-params">Besides</span> <span class="hljs-params">the</span> <span class="hljs-params">arguments</span> <span class="hljs-params">passed</span> <span class="hljs-params">by</span> <span class="hljs-params">the</span> <span class="hljs-params">caller</span>, <span class="hljs-params">each</span> <span class="hljs-params">handler</span> <span class="hljs-params">will</span> <span class="hljs-params">also</span> <span class="hljs-params">receive</span> 1 <span class="hljs-params">special</span>
-     * <span class="hljs-params">argument</span> <span class="hljs-params">at</span> <span class="hljs-params">last</span> <span class="hljs-params">that</span> <span class="hljs-params">contains</span> <span class="hljs-params">the</span> <span class="hljs-params">tag</span> <span class="hljs-params">information</span> <span class="hljs-params">about</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>.
-     * @<span class="hljs-params">param</span> <span class="hljs-params">eventName</span>
-     * @<span class="hljs-params">param</span> <span class="hljs-params">args</span>
+     * Add a handler for a specific event and optionally specify the maximum number
+     * of times that handler can be called. The handler ID will be returned.
+     * @param eventName
+     * @param handler
+     * @param maxCalls 0 = will be called until it is removed by the caller.
      */
-    <span class="hljs-params">emit</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...args: <span class="hljs-built_in">any</span>[]</span>): <span class="hljs-params">SimplyEventEmitter</span>;
-    <span class="hljs-params">reset</span><span class="hljs-params">()</span>: <span class="hljs-params">void</span>;
+    addHandler(eventName: string, handler: ((...args: any[]) =&gt; any) | any, maxCalls?: number): number;
+    /**
+     * Remove from the specified event all handlers having the specified IDs and
+     * return the emitter itself. As a result, it is possible to chain a series of
+     * calls to this method.
+     * @param eventName
+     * @param handlerIds
+     */
+    removeHandler(eventName: string, ...handlerIds: number[]): SimplyEventEmitter;
+    /**
+     * Emit an event, which results in the execution of all relevant registered handlers.
+     * Besides the arguments passed by the caller, each handler will also receive 1 special
+     * argument at last that contains the tag information about this handler.
+     * This method will return the emitter itself. As a result, it is possible to chain a series of
+     * calls to this method.
+     * @param eventName
+     * @param args
+     */
+    emit(eventName: string, ...args: any[]): SimplyEventEmitter;
+    /**
+     * Run a specified event handler of a specific event.
+     * Besides the arguments passed by the caller, the handler will also receive 1 special
+     * argument at last that contains the tag information about this handler.
+     * This method will return the emitter itself. As a result, it is possible to chain a series of
+     * calls to this method.
+     * @param eventName
+     * @param handlerId
+     * @param args
+     */
+    run(eventName: string, handlerId: number, ...args: any[]): SimplyEventEmitter;
+    /**
+     * Reset this emitter.
+     * This method will return the emitter itself. As a result, it is possible to chain other methods to
+     * the call to this method.
+     */
+    reset(): this;
 }
 
-<span class="hljs-params">declare</span> <span class="hljs-params">class</span> <span class="hljs-params">SimplyWS</span> {
-    <span class="hljs-params">constructor</span>(<span class="hljs-params">options: ISimplyWSOptions</span>);
-
-    <span class="hljs-params">open</span><span class="hljs-params">()</span>: <span class="hljs-params">SimplyWS</span>;
-
+/**
+ * A simple wrapper of WebSocket-compatible objects (i.e. any object that matches the IWebSocket interface)
+ * to provide some convenient Socket.io-like methods (such as on(), off(), emit()).
+ * It is designed to be used at both client and server sides.
+ */
+export declare class SimplyWS {
+    constructor(options: ISimplyWSOptions);
     /**
-     * <span class="hljs-params">Emit</span> <span class="hljs-params">an</span> <span class="hljs-params">event</span>-<span class="hljs-params">based</span> <span class="hljs-params">message</span> <span class="hljs-params">with</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">arguments</span>.
-     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
-     * @<span class="hljs-params">param</span>  {...<span class="hljs-params">any</span>} <span class="hljs-params">args</span>
+     * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
      */
-    <span class="hljs-params">emit</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...args: <span class="hljs-built_in">any</span>[]</span>): <span class="hljs-params">SimplyWS</span>;
-
+    open(): SimplyWS;
     /**
-     * <span class="hljs-params">Send</span> <span class="hljs-params">a</span> <span class="hljs-params">raw</span> <span class="hljs-params">text</span> <span class="hljs-params">message</span>.
-     * @<span class="hljs-params">param</span> <span class="hljs-params">message</span>
+     * Emit an event-based message with the specified arguments.
+     * @param {string} eventName
+     * @param  {...any} args
      */
-    <span class="hljs-params">send</span>(<span class="hljs-params">message: <span class="hljs-built_in">string</span></span>): <span class="hljs-params">void</span>;
-
+    emit(eventName: string, ...args: any[]): SimplyWS;
     /**
-     * <span class="hljs-params">Register</span> <span class="hljs-params">a</span> <span class="hljs-params">one</span>-<span class="hljs-params">time</span> <span class="hljs-params">handler</span> <span class="hljs-params">for</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span> <span class="hljs-params">and</span> <span class="hljs-params">return</span> <span class="hljs-params">the</span> <span class="hljs-params">corresponding</span>
-     * <span class="hljs-params">handlerId</span> <span class="hljs-params">which</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">later</span> <span class="hljs-params">to</span> <span class="hljs-params">unregister</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>. <span class="hljs-params">It</span> <span class="hljs-params">is</span> <span class="hljs-params">a</span> <span class="hljs-params">shortcut</span>
-     * <span class="hljs-params">for</span> <span class="hljs-params">on</span>(<span class="hljs-params">eventName, handler, 1</span>).
-     * @<span class="hljs-params">param</span> <span class="hljs-params">eventName</span>
-     * @<span class="hljs-params">param</span> <span class="hljs-params">handler</span>
+     * Send a raw text message.
+     * @param message
      */
-    <span class="hljs-params">once</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, handler: (<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">void</span></span>) | <span class="hljs-built_in">any</span></span>): <span class="hljs-params">void</span>;
-
+    send(message: string): void;
     /**
-     * <span class="hljs-params">Register</span> <span class="hljs-params">a</span> <span class="hljs-params">handler</span> <span class="hljs-params">for</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span> <span class="hljs-params">and</span> <span class="hljs-params">return</span> <span class="hljs-params">the</span> <span class="hljs-params">corresponding</span>
-     * <span class="hljs-params">handlerId</span> <span class="hljs-params">which</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">later</span> <span class="hljs-params">to</span> <span class="hljs-params">unregister</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span>.
-     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
-     * @<span class="hljs-params">param</span> {<span class="hljs-params">function</span>} <span class="hljs-params">handler</span>
-     * @<span class="hljs-params">param</span> {<span class="hljs-params">number</span>} <span class="hljs-params">maxCalls</span> <span class="hljs-params">The</span> <span class="hljs-params">number</span> <span class="hljs-params">of</span> <span class="hljs-params">times</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span>. <span class="hljs-params">After</span> <span class="hljs-params">that</span>, <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">will</span>
-     *         <span class="hljs-params">be</span> <span class="hljs-params">off</span>-<span class="hljs-params">ed</span> <span class="hljs-params">automatically</span>. <span class="hljs-params">If</span> 0 <span class="hljs-params">or</span> <span class="hljs-params">negative</span>, <span class="hljs-params">it</span> <span class="hljs-params">means</span> <span class="hljs-params">this</span> <span class="hljs-params">handler</span> <span class="hljs-params">can</span> <span class="hljs-params">be</span> <span class="hljs-params">used</span> <span class="hljs-params">until</span> <span class="hljs-params">off</span><span class="hljs-params">()</span> <span class="hljs-params">is</span> <span class="hljs-params">called</span> <span class="hljs-params">for</span> <span class="hljs-params">it</span>.
+     * Register a one-time handler for the specified event and return the corresponding
+     * handlerId which can be used later to unregister this handler. It is a shortcut
+     * for on(eventName, handler, 1).
+     * @param eventName
+     * @param handler
      */
-    <span class="hljs-params">on</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, handler: (<span class="hljs-params">(<span class="hljs-params">...args: <span class="hljs-built_in">any</span>[]</span>) =&gt; <span class="hljs-built_in">void</span></span>) | <span class="hljs-built_in">any</span>, maxCalls?: <span class="hljs-built_in">number</span></span>): <span class="hljs-params">number</span>;
-
+    once(eventName: string, handler: ((...args: any[]) =&gt; void) | any): void;
     /**
-     * <span class="hljs-params">Unregister</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">handlers</span> <span class="hljs-params">from</span> <span class="hljs-params">the</span> <span class="hljs-params">specified</span> <span class="hljs-params">event</span>. <span class="hljs-params">If</span> <span class="hljs-params">no</span> <span class="hljs-params">handler</span> <span class="hljs-params">is</span> <span class="hljs-params">specified</span>,
-     * <span class="hljs-params">then</span> <span class="hljs-params">unregister</span> <span class="hljs-params">all</span> <span class="hljs-params">registered</span> <span class="hljs-params">handlers</span>.
-     * @<span class="hljs-params">param</span> {<span class="hljs-params">string</span>} <span class="hljs-params">eventName</span>
-     * @<span class="hljs-params">param</span>  {...<span class="hljs-params">any</span>} <span class="hljs-params">handlerIds</span>
+     * Register a handler for the specified event and return the corresponding
+     * handlerId which can be used later to unregister this handler.
+     * For the 'message' event, the handler should have this signature:
+     * (message: string, matchesCustomEvent: boolean) =&gt; void. When matchesCustomEvent = true,
+     * it means this message can be handled by a custom event handler, i.e. this 'message' handler
+     * can base on matchesCustomEvent to determine if a message should be handled or not.
+     * @param {string} eventName
+     * @param {function} handler
+     * @param {number} maxCalls The number of times this handler can be used. After that, this handler will
+     *         be off-ed automatically. If 0 or negative, it means this handler can be used until off() is called for it.
      */
-    <span class="hljs-params">off</span>(<span class="hljs-params">eventName: <span class="hljs-built_in">string</span>, ...handlerIds: <span class="hljs-built_in">number</span>[]</span>): <span class="hljs-params">SimplyWS</span>;
-
-    <span class="hljs-params">close</span><span class="hljs-params">()</span>: <span class="hljs-params">SimplyWS</span>;
-}</span></code></pre>
+    on(eventName: string, handler: ((...args: any[]) =&gt; void) | any, maxCalls?: number): number;
+    /**
+     * Unregister the specified handlers from the specified event. If no handler is specified,
+     * then unregister all registered handlers.
+     * @param {string} eventName
+     * @param  {...any} handlerIds
+     */
+    off(eventName: string, ...handlerIds: number[]): SimplyWS;
+    close(): SimplyWS;
+}
+</code></pre>
 				<h1 id="references">References</h1>
 				<ul>
 					<li><a href="https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80">https://medium.com/@nilayvishwakarma/build-an-npm-package-with-typescript-by-nilay-vishwakarma-f303d7072f80</a></li>

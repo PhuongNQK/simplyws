@@ -1,3 +1,5 @@
+import { cat } from 'shelljs'
+
 export const WS_EVENT = {
 	OPEN: 'open',
 	ERROR: 'error',
@@ -42,16 +44,40 @@ export interface IWebSocket {
 }
 
 export interface ISimplyWSOptions {
+	/**
+	 * The url to the WebSocket endpoint to connect to.
+	 */
 	url?: string
-	autoConnect?: boolean
+	/**
+	 * By default, true.
+	 */
+	autoConnects?: boolean
+	/**
+	 * By default, it will be a call to console.error().
+	 */
 	onError?: (...args: any[]) => void
+	/**
+	 * By default, it will be a call to console.log().
+	 */
 	onLog?: (...args: any[]) => void
+	/**
+	 * The underlying websocket connection. If this is specified, then autoConnects will be treated as 
+	 * true and this socket will be used while url / socketBuilder will be ignored.
+	 */
 	socket?: IWebSocket
+	/**
+	 * A function that returns an IWebSocket object given a url to the target endpoint.
+	 */
 	socketBuilder?: (url: string) => IWebSocket
 	/**
 	 * Applied to the core WebSocket events (open, error, close, message) only.
 	 */
 	eventRunMode?: WS_EVENT_RUN_MODE
+	/**
+	 * Automatically wrap a handler with try...catch. Any occurred error will be handled by onError.
+	 * By default, it is true.
+	 */
+	runsHandlersSafely: boolean
 }
 
 /**
@@ -195,15 +221,17 @@ export class SimplyWS {
 	private _customEventEmitter = new SimplyEventEmitter()
 	private _coreEventEmitter = new SimplyEventEmitter()
 	private _eventRunMode: WS_EVENT_RUN_MODE
+	private _handlerBuilder: any
 
 	constructor(options: ISimplyWSOptions) {
 		const {
 			url,
-			autoConnect,
+			autoConnects,
 			onError,
 			onLog,
 			socket,
 			socketBuilder,
+			runsHandlersSafely,
 			eventRunMode = WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE
 		} = options
 		this._url = url
@@ -211,11 +239,27 @@ export class SimplyWS {
 		this._onLog = onLog || ((...args) => console.log(...args))
 		this._socketBuilder = socketBuilder || (socket != null ? url => socket : undefined)
 		this._eventRunMode = eventRunMode
-		if (socket != null || autoConnect || autoConnect == null) {
+		if (runsHandlersSafely || runsHandlersSafely == null) {
+			this._handlerBuilder = (handler: (...args: any[]) => void) => (...args: any[]) => {
+				try {
+					handler(...args)
+				} catch (e) {
+					this._onError(e)
+				}
+			}
+		} else {
+			this._handlerBuilder = (handler: (...args: any[]) => void) => handler
+		}
+
+		if (socket != null || autoConnects || autoConnects == null) {
 			this.open()
 		}
 	}
 
+	get readyState() {
+		return this._socket == null ? undefined : this._socket.readyState
+	}
+	
 	/**
 	 * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
 	 */
@@ -263,9 +307,9 @@ export class SimplyWS {
 	/**
 	 * Register a handler for the specified event and return the corresponding
 	 * handlerId which can be used later to unregister this handler.
-	 * For the 'message' event, the handler should have this signature: 
+	 * For the 'message' event, the handler should have this signature:
 	 * (message: string, matchesCustomEvent: boolean) => void. When matchesCustomEvent = true,
-	 * it means this message can be handled by a custom event handler, i.e. this 'message' handler 
+	 * it means this message can be handled by a custom event handler, i.e. this 'message' handler
 	 * can base on matchesCustomEvent to determine if a message should be handled or not.
 	 * @param {string} eventName
 	 * @param {function} handler
@@ -278,6 +322,8 @@ export class SimplyWS {
 		} else if (typeof handler !== 'function') {
 			handler = (handlerTag: any) => this._log(eventName, handler, handlerTag)
 		}
+
+		handler = this._handlerBuilder(handler)
 
 		const handlerId = this._customEventEmitter.addHandler(eventName, handler, maxCalls)
 		if (
@@ -323,7 +369,7 @@ export class SimplyWS {
 		)
 		this._addCoreEventHandler(socket, WS_EVENT.MESSAGE, message => {
 			const separatorIndex = message.indexOf(SEPARATOR)
-			const matchesCustomEvent: boolean = (separatorIndex > -1)
+			const matchesCustomEvent: boolean = separatorIndex > -1
 
 			if (matchesCustomEvent) {
 				if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {

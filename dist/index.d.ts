@@ -38,16 +38,40 @@ export interface IWebSocket {
     close(): any;
 }
 export interface ISimplyWSOptions {
+    /**
+     * The url to the WebSocket endpoint to connect to.
+     */
     url?: string;
-    autoConnect?: boolean;
+    /**
+     * By default, true.
+     */
+    autoConnects?: boolean;
+    /**
+     * By default, it will be a call to console.error().
+     */
     onError?: (...args: any[]) => void;
+    /**
+     * By default, it will be a call to console.log().
+     */
     onLog?: (...args: any[]) => void;
+    /**
+     * The underlying websocket connection. If this is specified, then autoConnects will be treated as
+     * true and this socket will be used while url / socketBuilder will be ignored.
+     */
     socket?: IWebSocket;
+    /**
+     * A function that returns an IWebSocket object given a url to the target endpoint.
+     */
     socketBuilder?: (url: string) => IWebSocket;
     /**
      * Applied to the core WebSocket events (open, error, close, message) only.
      */
     eventRunMode?: WS_EVENT_RUN_MODE;
+    /**
+     * Automatically wrap a handler with try...catch. Any occurred error will be handled by onError.
+     * By default, it is true.
+     */
+    runsHandlersSafely: boolean;
 }
 /**
  * An event emitter that allows adding/removing handlers for different events,
@@ -114,7 +138,9 @@ export declare class SimplyWS {
     private _customEventEmitter;
     private _coreEventEmitter;
     private _eventRunMode;
+    private _handlerBuilder;
     constructor(options: ISimplyWSOptions);
+    readonly readyState: number | undefined;
     /**
      * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
      */
