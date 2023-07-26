@@ -167,12 +167,12 @@ class SimplyWS {
         this._socketBuilder = socketBuilder || (socket != null ? url => socket : undefined);
         this._eventRunMode = eventRunMode;
         if (runsHandlersSafely || runsHandlersSafely == null) {
-            this._handlerBuilder = (handler) => (...args) => {
+            this._handlerBuilder = (eventName, handler) => (...args) => {
                 try {
                     handler(...args);
                 }
                 catch (e) {
-                    this._onError(e);
+                    this._onError(eventName, e, args);
                 }
             };
         }
@@ -190,7 +190,6 @@ class SimplyWS {
      * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
      */
     open() {
-        this._reset();
         if (this._socket == null && this._socketBuilder != null) {
             this._socket = this._socketBuilder(this._url);
         }
@@ -231,9 +230,9 @@ class SimplyWS {
      * Register a handler for the specified event and return the corresponding
      * handlerId which can be used later to unregister this handler.
      * For the 'message' event, the handler should have this signature:
-     * (message: string, matchesCustomEvent: boolean) => void. When matchesCustomEvent = true,
+     * (message: string, customEventName: string) => void. When customEventName != null,
      * it means this message can be handled by a custom event handler, i.e. this 'message' handler
-     * can base on matchesCustomEvent to determine if a message should be handled or not.
+     * can base on the presence of customEvent to determine if a message should be handled or not.
      * @param {string} eventName
      * @param {function} handler
      * @param {number} maxCalls The number of times this handler can be used. After that, this handler will
@@ -284,10 +283,10 @@ class SimplyWS {
             const separatorIndex = message.indexOf(SEPARATOR);
             const matchesCustomEvent = separatorIndex > -1;
             if (matchesCustomEvent) {
-                if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
-                    this.executeCustomHandlers(exports.WS_EVENT.MESSAGE, message, matchesCustomEvent);
-                }
                 const eventName = message.substring(0, separatorIndex);
+                if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
+                    this.executeCustomHandlers(exports.WS_EVENT.MESSAGE, message, eventName);
+                }
                 const args = JSON.parse(message.substring(separatorIndex + 1));
                 this.executeCustomHandlers(eventName, ...args);
             }
@@ -321,7 +320,7 @@ class SimplyWS {
                             handler(handlerTag);
                         }
                         catch (e) {
-                            this._onError(eventName, e);
+                            this._onError(eventName, e, handlerTag);
                         }
                     };
                     break;

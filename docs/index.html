@@ -65,18 +65,17 @@
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
 				<h1 id="simplyws">simplyws</h1>
-				<p>A simple wrapper of WebSocket-compatible objects (i.e. any object that has readyState property, send() and close() methods) to provide some convenient Socket.io-like methods (such as on(), off(), emit()). It is designed to be used at both client and server sides.</p>
+				<p>A simple wrapper of WebSocket-compatible objects (i.e. any object that matches the <strong>IWebSocket</strong> interface) to provide some convenient Socket.io-like methods (such as <strong>on()</strong>, <strong>off()</strong>, <strong>emit()</strong>). It is designed to be used in a NodeJS server as well as in a browser client, both of which can be written in either TypeScript or JavaScript.</p>
 				<h1 id="how-to-use">How to use</h1>
 				<p>A simple example:</p>
-				<pre><code class="language-javascript"><span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
-<span class="hljs-keyword">const</span> expressWs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-ws'</span>)
-<span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>)
-
+				<pre><code class="language-javascript"><span class="hljs-comment">// Common test values</span>
 <span class="hljs-keyword">const</span> SERVER_PORT = <span class="hljs-number">3001</span>
 <span class="hljs-keyword">const</span> TEST_ENDPOINT = <span class="hljs-string">'/test'</span>
 <span class="hljs-keyword">const</span> WS_URL = <span class="hljs-string">`ws://localhost:<span class="hljs-subst">${SERVER_PORT}</span><span class="hljs-subst">${TEST_ENDPOINT}</span>`</span>
 
-<span class="hljs-comment">// Set up the server side</span>
+<span class="hljs-comment">// Set up the NodeJS server side</span>
+<span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
+<span class="hljs-keyword">const</span> expressWs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-ws'</span>)
 <span class="hljs-keyword">const</span> app = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>)()
 expressWs(app)
 app.ws(TEST_ENDPOINT, <span class="hljs-keyword">async</span> (clientWs, request) =&gt; {
@@ -86,7 +85,9 @@ app.ws(TEST_ENDPOINT, <span class="hljs-keyword">async</span> (clientWs, request
 })
 server = app.listen(SERVER_PORT)
 
-<span class="hljs-comment">// Set up the client side</span>
+<span class="hljs-comment">// Set up a NodeJS client</span>
+<span class="hljs-keyword">const</span> { SimplyWS } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'simplyws'</span>)
+<span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>)
 <span class="hljs-keyword">const</span> simplyWSClient = <span class="hljs-keyword">new</span> SimplyWS({ <span class="hljs-attr">socket</span>: <span class="hljs-keyword">new</span> WebSocket(WS_URL) })
 simplyWSClient.on(<span class="hljs-string">'echo-response'</span>, message =&gt; <span class="hljs-built_in">console</span>.log(message)) <span class="hljs-comment">// You should see: Hello</span>
 simplyWSClient.on(<span class="hljs-string">'message'</span>, message =&gt; <span class="hljs-built_in">console</span>.log(message)) <span class="hljs-comment">// You should see: Hi Mike, 30 years old</span>
@@ -232,6 +233,7 @@ export declare class SimplyEventEmitter {
  */
 export declare class SimplyWS {
     constructor(options: ISimplyWSOptions);
+    readonly readyState: number | undefined;
     /**
      * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
      */
@@ -259,9 +261,9 @@ export declare class SimplyWS {
      * Register a handler for the specified event and return the corresponding
      * handlerId which can be used later to unregister this handler.
      * For the 'message' event, the handler should have this signature:
-     * (message: string, matchesCustomEvent: boolean) =&gt; void. When matchesCustomEvent = true,
+     * (message: string, customEventName: string) =&gt; void. When customEventName != null,
      * it means this message can be handled by a custom event handler, i.e. this 'message' handler
-     * can base on matchesCustomEvent to determine if a message should be handled or not.
+     * can base on the presence of customEvent to determine if a message should be handled or not.
      * @param {string} eventName
      * @param {function} handler
      * @param {number} maxCalls The number of times this handler can be used. After that, this handler will

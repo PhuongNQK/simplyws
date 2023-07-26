@@ -5,8 +5,6 @@ A simple wrapper of WebSocket-compatible objects (i.e. any object that matches t
 # How to use
 A simple example:
 ```javascript
-
-
 // Common test values
 const SERVER_PORT = 3001
 const TEST_ENDPOINT = '/test'
@@ -203,9 +201,9 @@ export declare class SimplyWS {
      * Register a handler for the specified event and return the corresponding
      * handlerId which can be used later to unregister this handler.
      * For the 'message' event, the handler should have this signature:
-     * (message: string, matchesCustomEvent: boolean) => void. When matchesCustomEvent = true,
-     * it means this message can be handled by a custom event handler, i.e. this 'message' handler
-     * can base on matchesCustomEvent to determine if a message should be handled or not.
+     * (message: string, customEventName: string) => void. When customEventName != null,
+	 * it means this message can be handled by a custom event handler, i.e. this 'message' handler
+	 * can base on the presence of customEvent to determine if a message should be handled or not.
      * @param {string} eventName
      * @param {function} handler
      * @param {number} maxCalls The number of times this handler can be used. After that, this handler will

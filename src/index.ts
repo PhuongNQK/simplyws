@@ -240,11 +240,11 @@ export class SimplyWS {
 		this._socketBuilder = socketBuilder || (socket != null ? url => socket : undefined)
 		this._eventRunMode = eventRunMode
 		if (runsHandlersSafely || runsHandlersSafely == null) {
-			this._handlerBuilder = (handler: (...args: any[]) => void) => (...args: any[]) => {
+			this._handlerBuilder = (eventName: string, handler: (...args: any[]) => void) => (...args: any[]) => {
 				try {
 					handler(...args)
 				} catch (e) {
-					this._onError(e)
+					this._onError(eventName, e, args)
 				}
 			}
 		} else {
@@ -264,7 +264,6 @@ export class SimplyWS {
 	 * Initialize the socket if it was created with autoConnect = false and without an underlying socket.
 	 */
 	open(): SimplyWS {
-		this._reset()
 		if (this._socket == null && this._socketBuilder != null) {
 			this._socket = this._socketBuilder(this._url)
 		}
@@ -308,9 +307,9 @@ export class SimplyWS {
 	 * Register a handler for the specified event and return the corresponding
 	 * handlerId which can be used later to unregister this handler.
 	 * For the 'message' event, the handler should have this signature:
-	 * (message: string, matchesCustomEvent: boolean) => void. When matchesCustomEvent = true,
+	 * (message: string, customEventName: string) => void. When customEventName != null,
 	 * it means this message can be handled by a custom event handler, i.e. this 'message' handler
-	 * can base on matchesCustomEvent to determine if a message should be handled or not.
+	 * can base on the presence of customEvent to determine if a message should be handled or not.
 	 * @param {string} eventName
 	 * @param {function} handler
 	 * @param {number} maxCalls The number of times this handler can be used. After that, this handler will
@@ -362,25 +361,25 @@ export class SimplyWS {
 	}
 
 	private _setUpSocket(socket: any): void {
-		this._addCoreEventHandler(socket, WS_EVENT.OPEN, () => this.executeCustomHandlers(WS_EVENT.OPEN))
-		this._addCoreEventHandler(socket, WS_EVENT.CLOSE, () => this.executeCustomHandlers(WS_EVENT.CLOSE))
+		this._addCoreEventHandler(socket, WS_EVENT.OPEN, () => this._executeCustomHandlers(WS_EVENT.OPEN))
+		this._addCoreEventHandler(socket, WS_EVENT.CLOSE, () => this._executeCustomHandlers(WS_EVENT.CLOSE))
 		this._addCoreEventHandler(socket, WS_EVENT.ERROR, (error: Error) =>
-			this.executeCustomHandlers(WS_EVENT.ERROR, error)
+			this._executeCustomHandlers(WS_EVENT.ERROR, error)
 		)
 		this._addCoreEventHandler(socket, WS_EVENT.MESSAGE, message => {
 			const separatorIndex = message.indexOf(SEPARATOR)
 			const matchesCustomEvent: boolean = separatorIndex > -1
 
 			if (matchesCustomEvent) {
+				const eventName = message.substring(0, separatorIndex)
 				if (this._eventRunMode == WS_EVENT_RUN_MODE.AS_MUCH_AS_POSSIBLE) {
-					this.executeCustomHandlers(WS_EVENT.MESSAGE, message, matchesCustomEvent)
+					this._executeCustomHandlers(WS_EVENT.MESSAGE, message, eventName)
 				}
 
-				const eventName = message.substring(0, separatorIndex)
 				const args = JSON.parse(message.substring(separatorIndex + 1))
-				this.executeCustomHandlers(eventName, ...args)
+				this._executeCustomHandlers(eventName, ...args)
 			} else {
-				this.executeCustomHandlers(WS_EVENT.MESSAGE, message, matchesCustomEvent)
+				this._executeCustomHandlers(WS_EVENT.MESSAGE, message, matchesCustomEvent)
 			}
 		})
 	}
@@ -411,7 +410,7 @@ export class SimplyWS {
 						try {
 							handler(handlerTag)
 						} catch (e) {
-							this._onError(eventName, e)
+							this._onError(eventName, e, handlerTag)
 						}
 					}
 					break
@@ -457,7 +456,7 @@ export class SimplyWS {
 		this._coreEventEmitter.reset()
 	}
 
-	private executeCustomHandlers(eventName: string, ...args: any[]): void {
+	private _executeCustomHandlers(eventName: string, ...args: any[]): void {
 		this._customEventEmitter.emit(eventName, ...args)
 	}
 
